@@ -20,5 +20,6 @@ public class ArithmeticDemo2 {
         System.out.println("The sum is: " + sum);
         System.out.println("The difference is: " + difference);
         System.out.println("The average is: " + average);
+        input.close();
     }
 }
