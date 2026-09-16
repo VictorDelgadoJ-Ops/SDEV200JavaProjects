@@ -3,7 +3,7 @@
 
 public class CharacterInfo {
     public static void main(String[] args) {
-        char aChar = 'C';
+        char aChar = ',';
         System.out.println("The character is " + aChar);
 
         if (Character.isUpperCase(aChar))
