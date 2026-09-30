@@ -12,6 +12,7 @@ import javax.swing.AbstractAction;
 import javax.swing.BorderFactory;
 import javax.swing.Box;
 import javax.swing.BoxLayout;
+import javax.swing.JComboBox;
 import javax.swing.InputMap;
 import javax.swing.JButton;
 import javax.swing.JComponent;
@@ -37,7 +38,8 @@ public final class GameWindow extends JFrame {
     private static final Color GOLD = new Color(231, 179, 89);
 
     private final SaveManager saveManager = new SaveManager();
-    private GameSession session = new GameSession("Diver", System.currentTimeMillis());
+    private GameSession session;
+    private JComboBox<Difficulty> difficultyChoice;
     private DungeonView dungeonView;
     private JPanel viewFrame;
     private JLabel nameLabel;
@@ -58,9 +60,86 @@ public final class GameWindow extends JFrame {
         setSize(1210, 790);
         setLocationRelativeTo(null);
         getContentPane().setBackground(BACKGROUND);
+        showMainMenu();
+    }
+
+    private void showGame() {
         buildInterface();
         installKeyboardControls();
         refreshDisplay();
+    }
+
+    private void showMainMenu() {
+        JPanel root = new JPanel(new BorderLayout());
+        root.setBackground(BACKGROUND);
+        root.setBorder(new EmptyBorder(44, 56, 44, 56));
+
+        JPanel titleBlock = new JPanel();
+        titleBlock.setOpaque(false);
+        titleBlock.setLayout(new BoxLayout(titleBlock, BoxLayout.Y_AXIS));
+        JLabel title = new JLabel("RPG / DUNGEON DIVER");
+        title.setForeground(TEXT);
+        title.setFont(new Font("Consolas", Font.BOLD, 34));
+        JLabel subtitle = new JLabel("A TURN-BASED DESCENT INTO THE DEEP");
+        subtitle.setForeground(MUTED);
+        subtitle.setFont(new Font("Consolas", Font.PLAIN, 14));
+        titleBlock.add(title);
+        titleBlock.add(Box.createVerticalStrut(10));
+        titleBlock.add(subtitle);
+        root.add(titleBlock, BorderLayout.NORTH);
+
+        JPanel menu = new JPanel();
+        menu.setOpaque(false);
+        menu.setLayout(new BoxLayout(menu, BoxLayout.Y_AXIS));
+        menu.setBorder(new EmptyBorder(55, 0, 0, 0));
+        menu.add(sectionLabel("CHOOSE YOUR DESCENT"));
+        menu.add(Box.createVerticalStrut(10));
+        difficultyChoice = new JComboBox<Difficulty>(Difficulty.values());
+        difficultyChoice.setSelectedItem(session == null
+                ? Difficulty.MEDIUM : session.getDifficulty());
+        difficultyChoice.setMaximumSize(new Dimension(310, 38));
+        difficultyChoice.setAlignmentX(LEFT_ALIGNMENT);
+        difficultyChoice.setBackground(PANEL);
+        difficultyChoice.setForeground(TEXT);
+        difficultyChoice.setFont(new Font("Consolas", Font.BOLD, 13));
+        menu.add(difficultyChoice);
+        menu.add(Box.createVerticalStrut(12));
+
+        JButton newRunButton = actionButton("NEW DIVE", ACCENT);
+        newRunButton.addActionListener(event -> startNewRun());
+        menu.add(newRunButton);
+        if (session != null) {
+            menu.add(Box.createVerticalStrut(7));
+            JButton continueButton = actionButton("CONTINUE CURRENT RUN", TEXT);
+            continueButton.setEnabled(!session.isGameOver());
+            continueButton.addActionListener(event -> showGame());
+            menu.add(continueButton);
+        }
+        menu.add(Box.createVerticalStrut(7));
+        JButton loadButton = actionButton("LOAD SAVED RUN", GOLD);
+        loadButton.addActionListener(event -> loadRun());
+        menu.add(loadButton);
+        menu.add(Box.createVerticalStrut(7));
+        JButton scoresButton = actionButton("HALL OF THE FALLEN", TEXT);
+        scoresButton.addActionListener(event -> showHighScores());
+        menu.add(scoresButton);
+        menu.add(Box.createVerticalStrut(7));
+        JButton exitButton = actionButton("EXIT", MUTED);
+        exitButton.addActionListener(event -> dispose());
+        menu.add(exitButton);
+
+        JPanel center = new JPanel(new BorderLayout());
+        center.setOpaque(false);
+        center.add(menu, BorderLayout.WEST);
+        JLabel depthMark = new JLabel("DESCEND  /  SURVIVE  /  RETURN");
+        depthMark.setForeground(new Color(104, 132, 115));
+        depthMark.setFont(new Font("Consolas", Font.BOLD, 12));
+        depthMark.setHorizontalAlignment(SwingConstants.RIGHT);
+        center.add(depthMark, BorderLayout.SOUTH);
+        root.add(center, BorderLayout.CENTER);
+        setContentPane(root);
+        revalidate();
+        repaint();
     }
 
     private void buildInterface() {
@@ -157,17 +236,20 @@ public final class GameWindow extends JFrame {
         JPanel fileButtons = new JPanel(new GridLayout(2, 2, 6, 6));
         fileButtons.setOpaque(false);
         JButton newButton = smallButton("NEW");
-        newButton.addActionListener(event -> startNewRun());
+        newButton.addActionListener(event -> showMainMenu());
         saveButton = smallButton("SAVE");
         saveButton.addActionListener(event -> saveRun());
         JButton loadButton = smallButton("LOAD");
         loadButton.addActionListener(event -> loadRun());
         JButton scoresButton = smallButton("SCORES");
         scoresButton.addActionListener(event -> showHighScores());
+        JButton menuButton = smallButton("MENU");
+        menuButton.addActionListener(event -> showMainMenu());
         fileButtons.add(newButton);
         fileButtons.add(saveButton);
         fileButtons.add(loadButton);
         fileButtons.add(scoresButton);
+        fileButtons.add(menuButton);
         sidebar.add(fileButtons);
 
         sidebar.add(Box.createVerticalStrut(16));
@@ -243,7 +325,7 @@ public final class GameWindow extends JFrame {
         nameLabel.setText(player.getName().toUpperCase());
         depthLabel.setText(String.format("DEPTH  %02d", session.getDepth()));
         statLabel.setText("LEVEL " + player.getLevel() + "     GOLD " + player.getGold()
-                + "     SCORE " + session.getScore());
+            + "     SCORE " + session.getScore() + "     " + session.getDifficulty());
         healthBar.setMaximum(player.getMaximumHealth());
         healthBar.setValue(player.getHealth());
         healthBar.setString(player.getHealth() + " / " + player.getMaximumHealth() + " HP");
@@ -290,19 +372,12 @@ public final class GameWindow extends JFrame {
         if (name.length() > 18) {
             name = name.substring(0, 18);
         }
-        session = new GameSession(name, System.nanoTime());
-        dungeonView = new DungeonView(session);
-        replaceDungeonView();
+        Difficulty difficulty = difficultyChoice == null
+            ? session == null ? Difficulty.MEDIUM : session.getDifficulty()
+            : (Difficulty) difficultyChoice.getSelectedItem();
+        session = new GameSession(name, System.nanoTime(), difficulty);
         scoreRecorded = false;
-        refreshDisplay();
-    }
-
-    private void replaceDungeonView() {
-        viewFrame.removeAll();
-        viewFrame.add(dungeonView, BorderLayout.CENTER);
-        viewFrame.revalidate();
-        viewFrame.repaint();
-        installKeyboardControls();
+        showGame();
     }
 
     private void saveRun() {
@@ -318,10 +393,8 @@ public final class GameWindow extends JFrame {
     private void loadRun() {
         try {
             session = saveManager.load();
-            dungeonView = new DungeonView(session);
-            replaceDungeonView();
             scoreRecorded = false;
-            refreshDisplay();
+            showGame();
         } catch (IOException exception) {
             showError("The saved run could not be loaded.", exception);
         }

@@ -14,7 +14,7 @@ RPG Dungeon Diver is a turn-based Java roguelike. Explore a tiled dungeon, defea
 2. Open the integrated PowerShell terminal in this folder.
 3. Run `.
 un.ps1`.
-4. Choose **NEW** to name a diver, or **LOAD** to resume a saved run.
+4. From the title menu, choose a difficulty and select **NEW DIVE**, or select **LOAD SAVED RUN** to resume.
 
 If PowerShell blocks local scripts, run `powershell -ExecutionPolicy Bypass -File .\run.ps1` from this folder. The script compiles the source into `build/classes` and launches the Swing application. Alternatively, compile the `src` directory with `javac` and run `rpgdungeon.Main` from the resulting classpath.
 
@@ -26,6 +26,7 @@ If PowerShell blocks local scripts, run `powershell -ExecutionPolicy Bypass -Fil
 - Defeat all enemies, find the gold `>` stair tile, then press **E** or select **DESCEND STAIRS**.
 - Enemies move after a valid player action. Walls block movement and do not consume a turn.
 - Enemies grow stronger and more numerous as the floor number rises. A run ends when health reaches zero.
+- Choose **Easy**, **Medium**, **Hard**, or **Insane** before starting. Higher difficulties add enemies and increase their health and attack power; the selected difficulty is stored with the run.
 - Use **SAVE** and **LOAD** to preserve or resume a run. **SCORES** displays the five highest recorded runs.
 
 Saves and high scores are stored in `%USERPROFILE%\.rpg-dungeon-diver`. A saved run includes diver statistics, location, floor, and each remaining enemy's type, position, and health. High-score rows that cannot be parsed are skipped so a damaged row does not hide the rest of the table.

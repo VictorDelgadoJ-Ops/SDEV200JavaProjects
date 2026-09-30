@@ -10,6 +10,7 @@ public final class GameSession {
     private static final int MAX_LOG_ENTRIES = 7;
     private final Player player;
     private final long seed;
+    private final Difficulty difficulty;
     private final List<String> messages = new ArrayList<String>();
     private int depth = 1;
     private int playerX;
@@ -19,14 +20,22 @@ public final class GameSession {
     private DungeonFloor floor;
 
     public GameSession(String playerName, long seed) {
+        this(playerName, seed, Difficulty.MEDIUM);
+    }
+
+    public GameSession(String playerName, long seed, Difficulty difficulty) {
+        if (difficulty == null) {
+            throw new IllegalArgumentException("A run must have a difficulty.");
+        }
         player = new Player(playerName);
         this.seed = seed;
+        this.difficulty = difficulty;
         createFloor();
         addMessage("The descent begins. Clear the floor and find the stairs.");
     }
 
     private void createFloor() {
-        floor = new DungeonFloor(seed, depth);
+        floor = new DungeonFloor(seed, depth, difficulty);
         playerX = floor.getStartX();
         playerY = floor.getStartY();
     }
@@ -183,6 +192,7 @@ public final class GameSession {
         values.setProperty("version", "1");
         values.setProperty("name", player.getName());
         values.setProperty("seed", Long.toString(seed));
+        values.setProperty("difficulty", difficulty.name());
         values.setProperty("depth", Integer.toString(depth));
         values.setProperty("x", Integer.toString(playerX));
         values.setProperty("y", Integer.toString(playerY));
@@ -204,6 +214,8 @@ public final class GameSession {
                 values.setProperty(key + "x", Integer.toString(enemy.getX()));
                 values.setProperty(key + "y", Integer.toString(enemy.getY()));
                 values.setProperty(key + "health", Integer.toString(enemy.getHealth()));
+                values.setProperty(key + "maxHealth", Integer.toString(enemy.getMaximumHealth()));
+                values.setProperty(key + "attack", Integer.toString(enemy.getAttackPower()));
             }
         }
         return values;
@@ -216,9 +228,10 @@ public final class GameSession {
         }
         String name = values.getProperty("name");
         long seed = Long.parseLong(values.getProperty("seed"));
-        GameSession session = new GameSession(name, seed);
+        Difficulty difficulty = Difficulty.fromId(values.getProperty("difficulty"));
+        GameSession session = new GameSession(name, seed, difficulty);
         session.depth = positiveInt(values, "depth");
-        session.floor = new DungeonFloor(seed, session.depth, false);
+        session.floor = new DungeonFloor(seed, session.depth, difficulty, false);
         session.playerX = nonnegativeInt(values, "x");
         session.playerY = nonnegativeInt(values, "y");
         if (!session.floor.isWalkable(session.playerX, session.playerY)) {
@@ -246,10 +259,14 @@ public final class GameSession {
                 int enemyY = nonnegativeInt(values, key + "y");
                 int enemyHealth = positiveInt(values, key + "health");
                 Enemy enemy = Enemy.create(type, enemyX, enemyY, session.depth);
-                if (enemyHealth > enemy.getMaximumHealth()) {
+                enemy.applyDifficulty(difficulty);
+                int maximumHealth = optionalPositiveInt(values, key + "maxHealth",
+                        enemy.getMaximumHealth());
+                int attackPower = optionalPositiveInt(values, key + "attack", enemy.getAttackPower());
+                if (enemyHealth > maximumHealth) {
                     throw new IllegalArgumentException("Saved enemy health is invalid.");
                 }
-                enemy.restoreStatistics(enemyHealth, enemy.getMaximumHealth(), enemy.getAttackPower());
+                enemy.restoreStatistics(enemyHealth, maximumHealth, attackPower);
                 session.floor.restoreEnemy(slot, enemy);
             }
         }
@@ -274,6 +291,10 @@ public final class GameSession {
         return value;
     }
 
+    private static int optionalPositiveInt(Properties values, String key, int defaultValue) {
+        return values.containsKey(key) ? positiveInt(values, key) : defaultValue;
+    }
+
     public Player getPlayer() {
         return player;
     }
@@ -284,6 +305,10 @@ public final class GameSession {
 
     public int getDepth() {
         return depth;
+    }
+
+    public Difficulty getDifficulty() {
+        return difficulty;
     }
 
     public int getPlayerX() {

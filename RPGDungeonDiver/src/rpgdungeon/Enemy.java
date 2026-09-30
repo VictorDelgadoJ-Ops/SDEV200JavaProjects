@@ -36,6 +36,12 @@ public abstract class Enemy extends Actor {
         throw new IllegalArgumentException("Unknown saved enemy type: " + type);
     }
 
+    void applyDifficulty(Difficulty difficulty) {
+        int maximumHealth = difficulty.scaleHealth(getMaximumHealth());
+        int attackPower = difficulty.scaleAttack(getAttackPower());
+        restoreStatistics(maximumHealth, maximumHealth, attackPower);
+    }
+
     public int getX() {
         return x;
     }

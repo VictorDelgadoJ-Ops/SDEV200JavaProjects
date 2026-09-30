@@ -28,22 +28,30 @@ public final class DungeonFloor {
     private int enemyCount;
 
     public DungeonFloor(long seed, int depth) {
-        this(seed, depth, true);
+        this(seed, depth, Difficulty.MEDIUM, true);
+    }
+
+    public DungeonFloor(long seed, int depth, Difficulty difficulty) {
+        this(seed, depth, difficulty, true);
     }
 
     DungeonFloor(long seed, int depth, boolean populateEnemies) {
+        this(seed, depth, Difficulty.MEDIUM, populateEnemies);
+    }
+
+    DungeonFloor(long seed, int depth, Difficulty difficulty, boolean populateEnemies) {
         tiles = new char[BLUEPRINT.length][BLUEPRINT[0].length()];
         for (int y = 0; y < BLUEPRINT.length; y++) {
             tiles[y] = BLUEPRINT[y].toCharArray();
         }
         tiles[STAIRS_Y][STAIRS_X] = '>';
         if (populateEnemies) {
-            placeEnemies(new Random(seed + depth * 7919L), depth);
+            placeEnemies(new Random(seed + depth * 7919L), depth, difficulty);
         }
     }
 
-    private void placeEnemies(Random random, int depth) {
-        int count = Math.min(3 + (depth - 1) / 2, ENEMY_SLOTS);
+    private void placeEnemies(Random random, int depth, Difficulty difficulty) {
+        int count = Math.min(difficulty.getEnemyCount(depth), ENEMY_SLOTS);
         for (int slot = 0; slot < count; slot++) {
             int x;
             int y;
@@ -66,6 +74,7 @@ public final class DungeonFloor {
                 } else {
                     enemies[slot] = new Goblin(x, y, depth);
                 }
+                enemies[slot].applyDifficulty(difficulty);
                 enemyCount++;
             }
         }
