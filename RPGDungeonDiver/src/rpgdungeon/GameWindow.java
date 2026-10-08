@@ -46,15 +46,18 @@ public final class GameWindow extends JFrame {
     private JLabel depthLabel;
     private JLabel statLabel;
     private JLabel potionLabel;
+    private JLabel equipmentLabel;
     private JLabel enemyLabel;
     private JProgressBar healthBar;
     private JProgressBar experienceBar;
     private JTextArea combatLog;
     private JButton saveButton;
+    private JButton restShopButton;
     private boolean scoreRecorded;
 
     public GameWindow() {
         super("RPG Dungeon Diver");
+        // Set up the window size and start on the title screen.
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         setMinimumSize(new Dimension(1030, 700));
         setSize(1210, 790);
@@ -64,12 +67,14 @@ public final class GameWindow extends JFrame {
     }
 
     private void showGame() {
+        // Rebuild the play screen and connect its controls to the current run.
         buildInterface();
         installKeyboardControls();
         refreshDisplay();
     }
 
     private void showMainMenu() {
+        // Build the title area separately from the buttons and difficulty choice.
         JPanel root = new JPanel(new BorderLayout());
         root.setBackground(BACKGROUND);
         root.setBorder(new EmptyBorder(44, 56, 44, 56));
@@ -92,6 +97,7 @@ public final class GameWindow extends JFrame {
         menu.setOpaque(false);
         menu.setLayout(new BoxLayout(menu, BoxLayout.Y_AXIS));
         menu.setBorder(new EmptyBorder(55, 0, 0, 0));
+        // Let the player pick a challenge level before starting a fresh run.
         menu.add(sectionLabel("CHOOSE YOUR DESCENT"));
         menu.add(Box.createVerticalStrut(10));
         difficultyChoice = new JComboBox<Difficulty>(Difficulty.values());
@@ -105,6 +111,7 @@ public final class GameWindow extends JFrame {
         menu.add(difficultyChoice);
         menu.add(Box.createVerticalStrut(12));
 
+        // These buttons handle starting, resuming, loading, scores, and exiting.
         JButton newRunButton = actionButton("NEW DIVE", ACCENT);
         newRunButton.addActionListener(event -> startNewRun());
         menu.add(newRunButton);
@@ -143,6 +150,7 @@ public final class GameWindow extends JFrame {
     }
 
     private void buildInterface() {
+        // Set up the header, map, stats panel, and control footer for gameplay.
         JPanel root = new JPanel(new BorderLayout(16, 14));
         root.setBackground(BACKGROUND);
         root.setBorder(new EmptyBorder(18, 20, 16, 20));
@@ -182,6 +190,7 @@ public final class GameWindow extends JFrame {
     }
 
     private JPanel buildSidebar() {
+        // The sidebar shows diver stats, actions, save controls, and the event log.
         JPanel sidebar = new JPanel();
         sidebar.setBackground(PANEL);
         sidebar.setBorder(new EmptyBorder(15, 15, 15, 15));
@@ -210,6 +219,9 @@ public final class GameWindow extends JFrame {
         potionLabel = bodyLabel("");
         sidebar.add(Box.createVerticalStrut(5));
         sidebar.add(potionLabel);
+        equipmentLabel = bodyLabel("");
+        sidebar.add(Box.createVerticalStrut(5));
+        sidebar.add(equipmentLabel);
         JLabel legend = bodyLabel("@ YOU   g GOBLIN   s SKELETON   w WRAITH");
         legend.setFont(new Font("Consolas", Font.PLAIN, 10));
         sidebar.add(Box.createVerticalStrut(7));
@@ -218,21 +230,28 @@ public final class GameWindow extends JFrame {
         sidebar.add(Box.createVerticalStrut(16));
         sidebar.add(sectionLabel("ACTIONS"));
         sidebar.add(Box.createVerticalStrut(8));
+        // Connect the main buttons to the same action handler as keyboard input.
         JButton attackButton = actionButton("ATTACK", ACCENT);
         attackButton.addActionListener(event -> performAction(() -> session.attack()));
         JButton potionButton = actionButton("DRINK POTION", new Color(222, 140, 116));
         potionButton.addActionListener(event -> performAction(() -> session.drinkPotion()));
         JButton descendButton = actionButton("DESCEND STAIRS", GOLD);
         descendButton.addActionListener(event -> performAction(() -> session.descend()));
+        restShopButton = actionButton("REST / SHOP", GOLD);
+        restShopButton.setEnabled(false);
+        restShopButton.addActionListener(event -> openRestShop());
         sidebar.add(attackButton);
         sidebar.add(Box.createVerticalStrut(6));
         sidebar.add(potionButton);
         sidebar.add(Box.createVerticalStrut(6));
         sidebar.add(descendButton);
+        sidebar.add(Box.createVerticalStrut(6));
+        sidebar.add(restShopButton);
 
         sidebar.add(Box.createVerticalStrut(16));
         sidebar.add(sectionLabel("RUN"));
         sidebar.add(Box.createVerticalStrut(8));
+        // Keep run management controls together in a small button grid.
         JPanel fileButtons = new JPanel(new GridLayout(2, 2, 6, 6));
         fileButtons.setOpaque(false);
         JButton newButton = smallButton("NEW");
@@ -271,6 +290,7 @@ public final class GameWindow extends JFrame {
     }
 
     private JPanel buildFooter() {
+        // Show the key bindings so players do not have to guess the controls.
         JPanel footer = new JPanel(new BorderLayout());
         footer.setOpaque(false);
         JLabel controls = new JLabel("MOVE  WASD / ARROWS     ATTACK  SPACE     POTION  H     STAIRS  E");
@@ -285,6 +305,7 @@ public final class GameWindow extends JFrame {
     }
 
     private void installKeyboardControls() {
+        // Bind both WASD and arrow keys, plus shortcuts for the other actions.
         InputMap inputs = dungeonView.getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW);
         bindMove(inputs, "UP", "moveUp", 0, -1);
         bindMove(inputs, "W", "moveUpW", 0, -1);
@@ -304,6 +325,7 @@ public final class GameWindow extends JFrame {
     }
 
     private void bindAction(InputMap inputs, String key, String actionName, GameAction action) {
+        // Route a pressed key through the normal action and screen refresh logic.
         inputs.put(KeyStroke.getKeyStroke(key), actionName);
         dungeonView.getActionMap().put(actionName, new AbstractAction() {
             @Override
@@ -314,6 +336,7 @@ public final class GameWindow extends JFrame {
     }
 
     private void performAction(GameAction action) {
+        // Ignore input after defeat, otherwise apply the move and redraw the UI.
         if (!session.isGameOver()) {
             action.run();
             refreshDisplay();
@@ -321,6 +344,7 @@ public final class GameWindow extends JFrame {
     }
 
     private void refreshDisplay() {
+        // Copy the latest game stats and event messages into the visible controls.
         Player player = session.getPlayer();
         nameLabel.setText(player.getName().toUpperCase());
         depthLabel.setText(String.format("DEPTH  %02d", session.getDepth()));
@@ -333,7 +357,14 @@ public final class GameWindow extends JFrame {
         experienceBar.setValue(player.getExperience());
         experienceBar.setString(player.getExperience() + " / " + player.getNextLevelExperience() + " XP");
         enemyLabel.setText("HOSTILES  " + session.getFloor().getEnemyCount());
-        potionLabel.setText("POTIONS  " + player.getPotions() + "     TURNS  " + session.getTurns());
+        potionLabel.setText("POTIONS  " + player.getPotions() + "/" + player.getMaximumPotions()
+                + "     TURNS  " + session.getTurns());
+        equipmentLabel.setText("WEAPON +" + player.getWeaponLevel()
+                + "     ARMOR +" + player.getArmorLevel());
+        restShopButton.setEnabled(session.isRestStop() && !session.isGameOver());
+        restShopButton.setText(session.isRestStop()
+                ? "REST STOP / SHOP"
+                : "REST / SHOP (FLOOR " + ((session.getDepth() / 3 + 1) * 3) + ")");
         StringBuilder log = new StringBuilder();
         for (String message : session.getMessages()) {
             if (log.length() > 0) {
@@ -346,6 +377,7 @@ public final class GameWindow extends JFrame {
         saveButton.setEnabled(!session.isGameOver());
         dungeonView.repaint();
 
+        // Record each finished run only once, then show its final score.
         if (session.isGameOver() && !scoreRecorded) {
             scoreRecorded = true;
             try {
@@ -359,7 +391,44 @@ public final class GameWindow extends JFrame {
         }
     }
 
+    private void openRestShop() {
+        if (!session.isRestStop() || session.isGameOver()) {
+            return;
+        }
+
+        while (true) {
+            Player player = session.getPlayer();
+            String restChoice = session.isRestAvailable()
+                    ? "Rest and heal up to 12 HP" : "Rest already used";
+            String weaponChoice = player.getWeaponLevel() >= 4
+                    ? "Weapon fully upgraded"
+                    : "Weapon upgrade (" + player.getWeaponUpgradeCost() + " gold)";
+            String armorChoice = player.getArmorLevel() >= 4
+                    ? "Armor fully upgraded"
+                    : "Armor upgrade (" + player.getArmorUpgradeCost() + " gold)";
+            Object[] choices = {restChoice, weaponChoice, armorChoice, "Leave"};
+            int choice = JOptionPane.showOptionDialog(this,
+                    "A safe stop. Gold: " + player.getGold()
+                            + "\nWeapon attack: " + player.getAttackPower()
+                            + "\nArmor reduces each hit by " + player.getArmorLevel() + ".",
+                    "Rest Stop and Shop", JOptionPane.DEFAULT_OPTION,
+                    JOptionPane.INFORMATION_MESSAGE, null, choices, choices[0]);
+            if (choice < 0 || choice == 3) {
+                return;
+            }
+            if (choice == 0) {
+                session.rest();
+            } else if (choice == 1) {
+                session.buyWeaponUpgrade();
+            } else {
+                session.buyArmorUpgrade();
+            }
+            refreshDisplay();
+        }
+    }
+
     private void startNewRun() {
+        // Ask for a diver name and use a default if the input is blank.
         String name = JOptionPane.showInputDialog(this, "Name your diver:", "New Run",
                 JOptionPane.QUESTION_MESSAGE);
         if (name == null) {
@@ -381,6 +450,7 @@ public final class GameWindow extends JFrame {
     }
 
     private void saveRun() {
+        // Show a confirmation or an error depending on whether saving works.
         try {
             saveManager.save(session);
             JOptionPane.showMessageDialog(this, "Run saved on this computer.",
@@ -391,6 +461,7 @@ public final class GameWindow extends JFrame {
     }
 
     private void loadRun() {
+        // Replace the current session with the saved one when it loads correctly.
         try {
             session = saveManager.load();
             scoreRecorded = false;
@@ -401,6 +472,7 @@ public final class GameWindow extends JFrame {
     }
 
     private void showHighScores() {
+        // Read the local score list and show it in a message box.
         try {
             java.util.List<String> scores = saveManager.readHighScores();
             String text = scores.isEmpty() ? "No completed runs yet."
@@ -413,11 +485,13 @@ public final class GameWindow extends JFrame {
     }
 
     private void showError(String message, IOException exception) {
+        // Put the file error details in a dialog instead of hiding the problem.
         JOptionPane.showMessageDialog(this, message + "\n" + exception.getMessage(),
                 "Dungeon Diver", JOptionPane.ERROR_MESSAGE);
     }
 
     private JProgressBar createBar(Color color) {
+        // Use one helper so the health and experience bars look consistent.
         JProgressBar bar = new JProgressBar();
         bar.setStringPainted(true);
         bar.setForeground(color);
@@ -454,6 +528,7 @@ public final class GameWindow extends JFrame {
     }
 
     private JButton actionButton(String text, Color color) {
+        // Apply the shared appearance and size used by the larger buttons.
         JButton button = new JButton(text);
         button.setAlignmentX(LEFT_ALIGNMENT);
         button.setMaximumSize(new Dimension(Integer.MAX_VALUE, 34));
@@ -470,6 +545,7 @@ public final class GameWindow extends JFrame {
     }
 
     private JButton smallButton(String text) {
+        // Smaller run buttons reuse the same style with less height.
         JButton button = actionButton(text, TEXT);
         button.setPreferredSize(new Dimension(105, 30));
         button.setMaximumSize(new Dimension(Integer.MAX_VALUE, 30));

@@ -40,6 +40,7 @@ public final class DungeonFloor {
     }
 
     DungeonFloor(long seed, int depth, Difficulty difficulty, boolean populateEnemies) {
+        // Copy the map strings into a grid so the stairs and enemies can be added.
         tiles = new char[BLUEPRINT.length][BLUEPRINT[0].length()];
         for (int y = 0; y < BLUEPRINT.length; y++) {
             tiles[y] = BLUEPRINT[y].toCharArray();
@@ -51,6 +52,7 @@ public final class DungeonFloor {
     }
 
     private void placeEnemies(Random random, int depth, Difficulty difficulty) {
+        // Place each enemy on an open tile, away from the player and the stairs.
         int count = Math.min(difficulty.getEnemyCount(depth), ENEMY_SLOTS);
         for (int slot = 0; slot < count; slot++) {
             int x;
@@ -80,6 +82,7 @@ public final class DungeonFloor {
         }
     }
 
+    // Keep coordinate checks in one place so pathfinding and enemy placement agree.
     private boolean isOpenFloor(int x, int y) {
         return isInside(x, y) && (tiles[y][x] == '.' || tiles[y][x] == '>');
     }
@@ -96,6 +99,7 @@ public final class DungeonFloor {
     public int[] nextStepToward(Enemy enemy, int targetX, int targetY) {
         int width = getWidth();
         int height = getHeight();
+        // These arrays remember visited tiles and how the search reached each one.
         int[][] previousX = new int[height][width];
         int[][] previousY = new int[height][width];
         boolean[][] visited = new boolean[height][width];
@@ -118,6 +122,7 @@ public final class DungeonFloor {
         int[] directionX = {0, 1, 0, -1};
         int[] directionY = {-1, 0, 1, 0};
 
+        // Search outward one tile at a time to find a shortest route.
         while (head < tail && !visited[targetY][targetX]) {
             int currentX = queueX[head];
             int currentY = queueY[head++];
@@ -142,6 +147,7 @@ public final class DungeonFloor {
         if (!visited[targetY][targetX]) {
             return new int[] {enemy.getX(), enemy.getY()};
         }
+        // Follow the saved path backward to find just the enemy's next move.
         int stepX = targetX;
         int stepY = targetY;
         while (previousX[stepY][stepX] != enemy.getX()
@@ -165,6 +171,7 @@ public final class DungeonFloor {
     }
 
     void removeEnemy(Enemy enemy) {
+        // Clear the matching slot when an enemy is defeated.
         for (int slot = 0; slot < enemies.length; slot++) {
             if (enemies[slot] == enemy) {
                 enemies[slot] = null;
@@ -175,6 +182,7 @@ public final class DungeonFloor {
     }
 
     void restoreEnemy(int slot, Enemy enemy) {
+        // Check saved enemies so they do not overlap or end up inside a wall.
         if (slot < 0 || slot >= enemies.length || enemies[slot] != null || enemy == null) {
             throw new IllegalArgumentException("Saved enemy placement is invalid.");
         }

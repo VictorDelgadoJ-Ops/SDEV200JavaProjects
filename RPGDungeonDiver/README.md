@@ -8,6 +8,16 @@ RPG Dungeon Diver is a turn-based Java roguelike. Explore a tiled dungeon, defea
 - Windows with PowerShell for the included scripts
 - No external libraries or network connection
 
+## Acknowledgment
+
+This project was developed using an existing game template as a starting point. I did not write all of the original code myself; I used the template as a foundation and adapted and extended it for this project, including changes to the gameplay, interface, and saving system.
+
+## Ideas I Didn't Have Time to Implement
+
+- Add a defend action that reduces damage from enemies during their turn.
+- Add more kinds of weapons, armor, and useful items.
+- Create additional dungeon maps and enemy types to make each run more varied.
+
 ## Run the Game
 
 1. Open this `RPGDungeonDiver` folder in VS Code.
@@ -23,13 +33,16 @@ If PowerShell blocks local scripts, run `powershell -ExecutionPolicy Bypass -Fil
 - Move one tile with **W/A/S/D** or the **arrow keys**.
 - Walk into an enemy to strike it, or use **Space** to attack an adjacent enemy.
 - Press **H** or select **DRINK POTION** to restore health. Drinking consumes a turn.
+- Defeated enemies have a 30% chance to drop a potion; you can carry up to five.
 - Defeat all enemies, find the gold `>` stair tile, then press **E** or select **DESCEND STAIRS**.
+- Every third floor is a safe rest stop with no enemies. Use **REST / SHOP** to heal once and spend gold on up to four weapon or armor upgrades.
+- Weapon upgrades add 2 attack power each. Each armor upgrade reduces every incoming hit by 1 damage, to a minimum of 1.
 - Enemies move after a valid player action. Walls block movement and do not consume a turn.
 - Enemies grow stronger and more numerous as the floor number rises. A run ends when health reaches zero.
 - Choose **Easy**, **Medium**, **Hard**, or **Insane** before starting. Higher difficulties add enemies and increase their health and attack power; the selected difficulty is stored with the run.
 - Use **SAVE** and **LOAD** to preserve or resume a run. **SCORES** displays the five highest recorded runs.
 
-Saves and high scores are stored in `%USERPROFILE%\.rpg-dungeon-diver`. A saved run includes diver statistics, location, floor, and each remaining enemy's type, position, and health. High-score rows that cannot be parsed are skipped so a damaged row does not hide the rest of the table.
+Saves and high scores are stored in `%USERPROFILE%\.rpg-dungeon-diver`. A saved run includes diver statistics, equipment upgrades, rest-stop use, location, floor, and each remaining enemy's type, position, and health. Older saves without equipment or rest-stop data load with the default values. High-score rows that cannot be parsed are skipped so a damaged row does not hide the rest of the table.
 
 ## Test the Game Rules
 

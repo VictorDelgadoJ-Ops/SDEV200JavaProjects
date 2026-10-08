@@ -24,6 +24,7 @@ public abstract class Enemy extends Actor {
 
     /** Create the requested enemy type at a position for the given floor. */
     public static Enemy create(String type, int x, int y, int depth) {
+        // The save file stores text IDs, so turn each ID back into its enemy class.
         if ("skeleton".equals(type)) {
             return new Skeleton(x, y, depth);
         }
@@ -37,6 +38,7 @@ public abstract class Enemy extends Actor {
     }
 
     void applyDifficulty(Difficulty difficulty) {
+        // Scale a new enemy's stats before it is placed in the dungeon.
         int maximumHealth = difficulty.scaleHealth(getMaximumHealth());
         int attackPower = difficulty.scaleAttack(getAttackPower());
         restoreStatistics(maximumHealth, maximumHealth, attackPower);

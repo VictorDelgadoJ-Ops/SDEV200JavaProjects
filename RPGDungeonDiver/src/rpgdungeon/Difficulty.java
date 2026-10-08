@@ -18,6 +18,7 @@ public enum Difficulty {
     }
 
     public int getEnemyCount(int depth) {
+        // Start with a capped count, then adjust it for the selected setting.
         int standardCount = Math.min(3 + (depth - 1) / 2, 5);
         if (this == EASY) {
             return Math.max(1, standardCount - 1);
@@ -32,10 +33,12 @@ public enum Difficulty {
     }
 
     int scaleHealth(int health) {
+        // Round up so percentage scaling does not make an enemy weaker than intended.
         return (health * healthPercent + 99) / 100;
     }
 
     int scaleAttack(int attack) {
+        // Keep scaled attack values as whole numbers and at least one damage.
         int scaledAttack = attack * attackPercent;
         if (attackPercent >= 100) {
             scaledAttack += 99;
@@ -47,6 +50,7 @@ public enum Difficulty {
         if (id == null) {
             return MEDIUM;
         }
+        // Saved runs store the enum name, which needs to match a real difficulty.
         try {
             return valueOf(id);
         } catch (IllegalArgumentException exception) {

@@ -32,6 +32,7 @@ public final class DungeonView extends JPanel {
     @Override
     protected void paintComponent(Graphics graphics) {
         super.paintComponent(graphics);
+        // Draw with a copy so these graphics settings do not affect Swing.
         Graphics2D canvas = (Graphics2D) graphics.create();
         canvas.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
         canvas.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
@@ -50,6 +51,7 @@ public final class DungeonView extends JPanel {
         canvas.setFont(new Font("Consolas", Font.PLAIN, 12));
         canvas.drawString(floor.getEnemyCount() + " HOSTILES REMAIN", left + 112, top - 30);
 
+        // Paint the map tiles first so the characters appear on top of them.
         for (int y = 0; y < floor.getHeight(); y++) {
             for (int x = 0; x < floor.getWidth(); x++) {
                 int tileX = left + x * tileSize;
@@ -70,6 +72,7 @@ public final class DungeonView extends JPanel {
             }
         }
 
+        // Draw monsters and then the player so the diver is visible if tiles overlap.
         for (Enemy enemy : floor.getEnemies()) {
             if (enemy != null) {
                 drawActor(canvas, left + enemy.getX() * tileSize, top + enemy.getY() * tileSize,
@@ -83,12 +86,14 @@ public final class DungeonView extends JPanel {
         canvas.setStroke(new BasicStroke(1.2f));
         canvas.drawRoundRect(left - 6, top - 6, mapWidth + 11, mapHeight + 11, 10, 10);
         if (session.isGameOver()) {
+            // Cover the map with a score panel after the diver is defeated.
             drawGameOver(canvas);
         }
         canvas.dispose();
     }
 
     private void drawStairs(Graphics2D canvas, int x, int y, int size) {
+        // Draw a gold set of lines inside the stair tile.
         int inset = Math.max(5, size / 5);
         canvas.setColor(new Color(113, 84, 47));
         canvas.fillRoundRect(x + inset, y + inset, size - inset * 2, size - inset * 2, 5, 5);
@@ -101,6 +106,7 @@ public final class DungeonView extends JPanel {
     }
 
     private void drawActor(Graphics2D canvas, int x, int y, int size, char symbol, Color color) {
+        // Use a circle and a centered letter to show each game character.
         int inset = Math.max(4, size / 6);
         canvas.setColor(new Color(color.getRed(), color.getGreen(), color.getBlue(), 58));
         canvas.fillOval(x + 2, y + 2, size - 5, size - 5);

@@ -13,8 +13,10 @@ public final class GameLogicTest {
     public static void main(String[] args) throws Exception {
         testInheritanceAndCombat();
         testPotionAndLevelProgression();
+        testPotionCapacityAndEquipment();
         testGridAndTurnRules();
         testDifficultyScaling();
+        testRestStopAndShop();
         testSaveRoundTrip();
         testDiskPersistenceAndScores();
         testInvalidSaveRejected();
@@ -40,6 +42,27 @@ public final class GameLogicTest {
         check(player.earnExperience(24) == 1, "Experience reaches the first level threshold.");
         check(player.getLevel() == 2, "Level increases when experience is earned.");
         check(player.getMaximumHealth() == 39, "Leveling increases maximum health.");
+    }
+
+    private static void testPotionCapacityAndEquipment() {
+        Player player = new Player("Supply Tester");
+        check(player.addPotion(), "A potion can be picked up below the carrying limit.");
+        check(player.getPotions() == 3, "Picking up a potion increases the supply.");
+        check(player.addPotion() && player.addPotion(), "More potions fit before reaching the limit.");
+        check(!player.addPotion() && player.getPotions() == player.getMaximumPotions(),
+                "The player cannot carry more than five potions.");
+
+        player.addGold(30);
+        int oldAttack = player.getAttackPower();
+        check(player.buyWeaponUpgrade(), "Gold can buy a weapon upgrade.");
+        check(player.getAttackPower() == oldAttack + 2 && player.getWeaponLevel() == 1,
+                "A weapon upgrade adds two attack power.");
+        check(player.getGold() == 0, "Buying an upgrade deducts its cost.");
+
+        player.restoreEquipment(0, 2);
+        int oldHealth = player.getHealth();
+        player.takeDamage(5);
+        check(player.getHealth() == oldHealth - 3, "Armor reduces incoming damage.");
     }
 
     private static void testGridAndTurnRules() {
@@ -74,6 +97,54 @@ public final class GameLogicTest {
                 "Enemy attack power increases on hard and insane.");
         check(easyEnemy.getAttackPower() < mediumEnemy.getAttackPower(),
             "Easy reduces enemy attack power.");
+    }
+
+    private static void testRestStopAndShop() {
+        GameSession regularFloor = new GameSession("Shop Tester", 3333L);
+        regularFloor.getPlayer().addGold(100);
+        check(!regularFloor.buyWeaponUpgrade() && regularFloor.getPlayer().getWeaponLevel() == 0,
+                "The player cannot shop on a normal enemy floor.");
+
+        GameSession session = createRestStopSession();
+        check(session.isRestStop(), "Every third floor is a rest stop.");
+        check(session.getFloor().getEnemyCount() == 0, "Rest stops are safe from enemies.");
+        Player player = session.getPlayer();
+        player.takeDamage(20);
+        int oldHealth = player.getHealth();
+        check(session.rest(), "The player can rest once at a rest stop.");
+        check(player.getHealth() == oldHealth + 12 && !session.isRestAvailable(),
+                "Rest restores health and is limited to once per stop.");
+        check(!session.rest(), "The same rest stop cannot be used twice.");
+
+        player.addGold(100);
+        int oldAttack = player.getAttackPower();
+        check(session.buyWeaponUpgrade(), "The rest stop shop sells weapon upgrades.");
+        check(player.getAttackPower() == oldAttack + 2, "Shop weapon upgrades improve attacks.");
+        check(session.buyArmorUpgrade() && player.getArmorLevel() == 1,
+                "The rest stop shop sells armor upgrades.");
+        check(player.getGold() == 45, "The shop subtracts both upgrade prices from gold.");
+
+        Properties saved = session.toProperties();
+        GameSession restored = GameSession.fromProperties(saved);
+        check(restored.getPlayer().getWeaponLevel() == 1
+                && restored.getPlayer().getArmorLevel() == 1,
+                "Save data retains bought equipment upgrades.");
+        check(!restored.isRestAvailable(), "Save data retains whether the rest was used.");
+        check(restored.getFloor().getEnemyCount() == 0,
+                "Loading a rest stop does not add enemies.");
+    }
+
+    private static GameSession createRestStopSession() {
+        Properties values = new GameSession("Rest Tester", 4444L).toProperties();
+        values.setProperty("depth", "2");
+        values.setProperty("x", "17");
+        values.setProperty("y", "9");
+        for (int slot = 0; slot < 5; slot++) {
+            values.setProperty("enemy." + slot + ".type", "none");
+        }
+        GameSession session = GameSession.fromProperties(values);
+        check(session.descend(), "An empty second floor lets the test reach the rest stop.");
+        return session;
     }
 
     private static void testSaveRoundTrip() {
@@ -113,6 +184,13 @@ public final class GameLogicTest {
         }
         check(GameSession.fromProperties(legacySave).getDifficulty() == Difficulty.MEDIUM,
                 "Legacy saves without difficulty load as medium.");
+        legacySave.remove("weaponLevel");
+        legacySave.remove("armorLevel");
+        legacySave.remove("restUsed");
+        GameSession olderSave = GameSession.fromProperties(legacySave);
+        check(olderSave.getPlayer().getWeaponLevel() == 0
+                && olderSave.getPlayer().getArmorLevel() == 0,
+                "Older saves load with the default equipment.");
     }
 
     private static void testInvalidSaveRejected() {

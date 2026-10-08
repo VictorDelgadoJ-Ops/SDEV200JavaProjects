@@ -32,6 +32,7 @@ public final class SaveManager {
 
     /** Persist the current complete run, including enemy positions and health. */
     public void save(GameSession session) throws IOException {
+        // Make sure the save folder exists before writing the properties file.
         Files.createDirectories(dataDirectory);
         Properties values = session.toProperties();
         try (OutputStream output = Files.newOutputStream(saveFile)) {
@@ -41,6 +42,7 @@ public final class SaveManager {
 
     /** Load a saved run, reporting missing or damaged files as an IOException. */
     public GameSession load() throws IOException {
+        // Give a clear error instead of trying to read a file that is not there.
         if (!Files.isRegularFile(saveFile)) {
             throw new IOException("No saved run was found.");
         }
@@ -58,6 +60,7 @@ public final class SaveManager {
     /** Add one completed run to the persistent score table. */
     public void recordScore(String name, int score) throws IOException {
         Files.createDirectories(dataDirectory);
+        // Keep names on one row because the score file uses tabs and newlines as separators.
         String safeName = name.replace('\t', ' ').replace('\n', ' ').replace('\r', ' ').trim();
         if (safeName.isEmpty()) {
             safeName = "Diver";
@@ -72,6 +75,7 @@ public final class SaveManager {
             return Collections.emptyList();
         }
         List<ScoreEntry> scores = new ArrayList<ScoreEntry>();
+        // Skip a broken row without losing other scores from the file.
         for (String line : Files.readAllLines(scoreFile, StandardCharsets.UTF_8)) {
             String[] fields = line.split("\t", 2);
             if (fields.length != 2) {
@@ -89,6 +93,7 @@ public final class SaveManager {
                 return Integer.compare(second.score, first.score);
             }
         });
+        // Format only the five highest valid entries for the score dialog.
         List<String> rows = new ArrayList<String>();
         for (int index = 0; index < Math.min(5, scores.size()); index++) {
             ScoreEntry entry = scores.get(index);

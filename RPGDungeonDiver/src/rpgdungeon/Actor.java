@@ -8,6 +8,7 @@ public abstract class Actor {
     private int attackPower;
 
     protected Actor(String name, int maximumHealth, int attackPower) {
+        // Check the shared character stats before saving them.
         if (name == null || name.trim().isEmpty()) {
             throw new IllegalArgumentException("An actor must have a name.");
         }
@@ -22,22 +23,31 @@ public abstract class Actor {
 
     /** Apply this actor's attack and return the damage dealt. */
     public final int attack(Actor target) {
+        // Characters cannot damage a missing or already defeated target.
         if (target == null || !target.isAlive()) {
             return 0;
         }
+        int oldHealth = target.getHealth();
         target.takeDamage(attackPower);
-        return attackPower;
+        return oldHealth - target.getHealth();
     }
 
     /** Reduce health without allowing it to fall below zero. */
-    public final void takeDamage(int damage) {
+    public void takeDamage(int damage) {
+        // Ignore negative damage so it cannot accidentally heal the target.
         if (damage > 0) {
-            health = Math.max(0, health - damage);
+            health = Math.max(0, health - reduceDamage(damage));
         }
+    }
+
+    // Subclasses can adjust damage before it is taken.
+    protected int reduceDamage(int damage) {
+        return damage;
     }
 
     /** Restore up to the actor's maximum health. */
     public final int heal(int amount) {
+        // Healing only works for living characters and never exceeds max health.
         if (amount <= 0 || !isAlive()) {
             return 0;
         }
@@ -47,6 +57,7 @@ public abstract class Actor {
     }
 
     final void restoreStatistics(int savedHealth, int savedMaximumHealth, int savedAttackPower) {
+        // Reject save data that would give an actor impossible stats.
         if (savedMaximumHealth < 1 || savedAttackPower < 1
                 || savedHealth < 0 || savedHealth > savedMaximumHealth) {
             throw new IllegalArgumentException("Saved character statistics are invalid.");
@@ -57,6 +68,7 @@ public abstract class Actor {
     }
 
     protected final void increaseMaximumHealth(int amount) {
+        // Keep the player's current health topped up when their max health grows.
         maximumHealth += amount;
         health += amount;
     }
