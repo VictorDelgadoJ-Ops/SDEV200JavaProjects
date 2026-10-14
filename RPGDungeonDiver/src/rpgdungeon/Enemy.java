@@ -1,6 +1,6 @@
 package rpgdungeon;
 
-/** Base class for enemies; concrete enemy types provide identity and rewards. */
+/** Adds map position and defeat rewards to the shared combat behavior for enemies. */
 public abstract class Enemy extends Actor {
     private int x;
     private int y;
@@ -16,15 +16,15 @@ public abstract class Enemy extends Actor {
         this.y = y;
     }
 
-    /** A compact symbol used by the dungeon renderer. */
+    /** Return the one-character marker shown for this enemy on the dungeon map. */
     public abstract char getSymbol();
 
-    /** Stable type identifier used to restore saved enemies. */
+    /** Return the save-file identifier used to recreate this specific enemy type. */
     public abstract String getTypeId();
 
-    /** Create the requested enemy type at a position for the given floor. */
+    /** Build an enemy from its saved type name, map coordinates, and current floor depth. */
     public static Enemy create(String type, int x, int y, int depth) {
-        // The save file stores text IDs, so turn each ID back into its enemy class.
+        // Saves store short text IDs instead of class names, so map each known ID to its class.
         if ("skeleton".equals(type)) {
             return new Skeleton(x, y, depth);
         }
@@ -38,7 +38,7 @@ public abstract class Enemy extends Actor {
     }
 
     void applyDifficulty(Difficulty difficulty) {
-        // Scale a new enemy's stats before it is placed in the dungeon.
+        // Scale the enemy's base stats for this run before its saved stats, if any, are restored.
         int maximumHealth = difficulty.scaleHealth(getMaximumHealth());
         int attackPower = difficulty.scaleAttack(getAttackPower());
         restoreStatistics(maximumHealth, maximumHealth, attackPower);

@@ -3,23 +3,23 @@ package rpgdungeon;
 import javax.swing.SwingUtilities;
 import javax.swing.UIManager;
 
-/** Application entry point. */
+/** Starts the Swing application and opens the main game window. */
 public final class Main {
     private Main() {
     }
 
     public static void main(String[] args) {
-        // Swing components should be created on its event thread.
+        // Start Swing setup on its event-dispatch thread, which safely handles UI events.
         SwingUtilities.invokeLater(new Runnable() {
             @Override
             public void run() {
                 try {
-                    // Use the computer's normal window style when it is available.
+                    // Match the window controls and colors to the operating system when possible.
                     UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName());
                 } catch (Exception exception) {
-                    // Swing's built-in look and feel is an acceptable fallback.
+                    // If the system style is unavailable, Swing keeps using its default appearance.
                 }
-                // Build and display the main game window.
+                // Create the game window and make it visible after the style has been chosen.
                 new GameWindow().setVisible(true);
             }
         });

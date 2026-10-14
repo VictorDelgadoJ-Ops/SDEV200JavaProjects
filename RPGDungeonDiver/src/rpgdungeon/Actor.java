@@ -1,6 +1,6 @@
 package rpgdungeon;
 
-/** Shared health and combat behavior for every living game character. */
+/** Holds the health and basic combat rules shared by the player and all enemies. */
 public abstract class Actor {
     private final String name;
     private int health;
@@ -8,7 +8,7 @@ public abstract class Actor {
     private int attackPower;
 
     protected Actor(String name, int maximumHealth, int attackPower) {
-        // Check the shared character stats before saving them.
+        // Validate these values here so every actor starts with usable combat stats.
         if (name == null || name.trim().isEmpty()) {
             throw new IllegalArgumentException("An actor must have a name.");
         }
@@ -21,9 +21,9 @@ public abstract class Actor {
         this.attackPower = attackPower;
     }
 
-    /** Apply this actor's attack and return the damage dealt. */
+    /** Attack a living target and return how much health the hit actually removed. */
     public final int attack(Actor target) {
-        // Characters cannot damage a missing or already defeated target.
+        // A missing or defeated target has no health left to reduce.
         if (target == null || !target.isAlive()) {
             return 0;
         }
@@ -32,22 +32,22 @@ public abstract class Actor {
         return oldHealth - target.getHealth();
     }
 
-    /** Reduce health without allowing it to fall below zero. */
+    /** Apply incoming damage, with subclasses able to reduce it before health changes. */
     public void takeDamage(int damage) {
-        // Ignore negative damage so it cannot accidentally heal the target.
+        // Negative values should not act like healing; healing has its own method.
         if (damage > 0) {
             health = Math.max(0, health - reduceDamage(damage));
         }
     }
 
-    // Subclasses can adjust damage before it is taken.
+    // The player overrides this hook for armor; other actors take the full hit.
     protected int reduceDamage(int damage) {
         return damage;
     }
 
-    /** Restore up to the actor's maximum health. */
+    /** Restore health without exceeding the actor's maximum and return the amount restored. */
     public final int heal(int amount) {
-        // Healing only works for living characters and never exceeds max health.
+        // Defeated actors cannot heal, and invalid or excess healing is ignored.
         if (amount <= 0 || !isAlive()) {
             return 0;
         }
@@ -57,7 +57,7 @@ public abstract class Actor {
     }
 
     final void restoreStatistics(int savedHealth, int savedMaximumHealth, int savedAttackPower) {
-        // Reject save data that would give an actor impossible stats.
+        // Check loaded values before replacing the actor's current combat stats.
         if (savedMaximumHealth < 1 || savedAttackPower < 1
                 || savedHealth < 0 || savedHealth > savedMaximumHealth) {
             throw new IllegalArgumentException("Saved character statistics are invalid.");
@@ -68,7 +68,7 @@ public abstract class Actor {
     }
 
     protected final void increaseMaximumHealth(int amount) {
-        // Keep the player's current health topped up when their max health grows.
+        // Leveling increases both the health limit and current health by the same amount.
         maximumHealth += amount;
         health += amount;
     }

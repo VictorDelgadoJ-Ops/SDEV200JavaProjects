@@ -6,7 +6,7 @@ import java.util.List;
 import java.util.Properties;
 import java.util.Random;
 
-/** Owns the turn-based rules and state for one complete roguelike run. */
+/** Holds the state of one run and applies the rules for each player and enemy turn. */
 public final class GameSession {
     private static final int MAX_LOG_ENTRIES = 7;
     private final Player player;
@@ -26,7 +26,7 @@ public final class GameSession {
     }
 
     public GameSession(String playerName, long seed, Difficulty difficulty) {
-        // A new run needs its diver, chosen difficulty, and starting floor.
+        // Require a difficulty before creating the player and the first floor for this run.
         if (difficulty == null) {
             throw new IllegalArgumentException("A run must have a difficulty.");
         }
@@ -38,8 +38,8 @@ public final class GameSession {
     }
 
     private void createFloor() {
-        // Reset the map and put the diver at its starting tile for this floor.
-        // Every third floor skips enemy placement to make a safe shop stop.
+        // Generate this floor from the run seed and start the diver at the map's entrance.
+        // The rest-stop floors are intentionally created without enemies.
         floor = new DungeonFloor(seed, depth, difficulty, !isRestStopFloor());
         playerX = floor.getStartX();
         playerY = floor.getStartY();
@@ -51,7 +51,7 @@ public final class GameSession {
 
     /** Move one tile; walking into an enemy performs a melee attack instead. */
     public boolean move(int deltaX, int deltaY) {
-        // Only allow one-tile moves, and do nothing once the run is over.
+        // Reject diagonal, multi-tile, and post-game moves before checking the destination.
         if (gameOver || Math.abs(deltaX) + Math.abs(deltaY) != 1) {
             return false;
         }
@@ -62,7 +62,7 @@ public final class GameSession {
         }
         Enemy target = floor.enemyAt(nextX, nextY);
         if (target != null) {
-            // Walking into a monster counts as the player's attack.
+            // Moving onto an enemy's tile attacks it instead of moving the diver into that tile.
             strike(target);
         } else {
             playerX = nextX;
@@ -80,7 +80,7 @@ public final class GameSession {
         if (gameOver) {
             return false;
         }
-        // Pick an adjacent target; attacks that miss do not use a turn.
+        // Only an adjacent enemy can be hit, and a miss does not give enemies a turn.
         Enemy target = closestAdjacentEnemy();
         if (target == null) {
             addMessage("No enemy is close enough to strike.");
@@ -96,7 +96,7 @@ public final class GameSession {
         if (gameOver) {
             return false;
         }
-        // The player method handles potion count and how much health is restored.
+        // Player handles the inventory and healing amount; a failed heal does not spend a turn.
         int healed = player.drinkPotion();
         if (healed == 0) {
             addMessage(player.getPotions() == 0
@@ -114,7 +114,7 @@ public final class GameSession {
         if (gameOver) {
             return false;
         }
-        // The diver has to reach the stairs and clear the floor first.
+        // Require the player to stand on the stair tile before checking whether enemies remain.
         if (!floor.hasStairsAt(playerX, playerY)) {
             addMessage("Find the gold stairs before descending.");
             return false;
@@ -186,12 +186,12 @@ public final class GameSession {
     }
 
     private boolean isRestStopFloor() {
-        // Floors 3, 6, 9, and so on are the safe places to rest and shop.
+        // Every third floor is generated as a safe place for healing and equipment purchases.
         return depth % 3 == 0;
     }
 
     private void strike(Enemy enemy) {
-        // Give the defeated monster's rewards to the player.
+        // Apply the attack, then award gold and experience if this hit defeated the enemy.
         int damage = player.attack(enemy);
         addMessage("You strike the " + enemy.getName() + " for " + damage + " damage.");
         if (!enemy.isAlive()) {
@@ -199,7 +199,7 @@ public final class GameSession {
             player.addGold(enemy.getGoldReward());
             int levels = player.earnExperience(enemy.getExperienceReward());
             addMessage(enemy.getName() + " defeated. +" + enemy.getGoldReward() + " gold.");
-            // Use the run and turn details so the drop result stays the same after loading.
+            // Derive the drop roll from saved run state so reloading does not change the result.
             if (player.getPotions() < player.getMaximumPotions()
                     && new Random(seed ^ (depth * 7919L) ^ (turns * 104729L)
                             ^ (((long) enemy.getX() << 32) | (enemy.getY() & 0xffffffffL))
@@ -216,7 +216,7 @@ public final class GameSession {
     private Enemy closestAdjacentEnemy() {
         Enemy closest = null;
         int closestDistance = Integer.MAX_VALUE;
-        // Check each live enemy and keep the closest one next to the player.
+        // Find the nearest living enemy within one tile, which is the valid melee range.
         for (Enemy enemy : floor.getEnemies()) {
             if (enemy == null) {
                 continue;
@@ -233,7 +233,7 @@ public final class GameSession {
     private void finishPlayerTurn() {
         turns++;
         Enemy[] enemies = floor.getEnemies();
-        // Enemies either attack if close enough or take a step toward the diver.
+        // Give each surviving enemy one response: attack nearby or move one pathfinding step closer.
         for (Enemy enemy : enemies) {
             if (enemy == null || !enemy.isAlive()) {
                 continue;
@@ -265,17 +265,17 @@ public final class GameSession {
     }
 
     private void addMessage(String message) {
-        // Keep the log short enough to fit in the game's side panel.
+        // Keep only the newest messages so the event history fits in the sidebar.
         messages.add(message);
         while (messages.size() > MAX_LOG_ENTRIES) {
             messages.remove(0);
         }
     }
 
-    /** Export all run state needed to reproduce this floor after loading. */
+    /** Convert the run and current floor state into properties for the save file. */
     Properties toProperties() {
         Properties values = new Properties();
-        // Store player and floor details so loading can restore this exact run.
+        // Save the player, difficulty, position, and progress needed to resume this run.
         values.setProperty("version", "1");
         values.setProperty("name", player.getName());
         values.setProperty("seed", Long.toString(seed));
@@ -296,7 +296,7 @@ public final class GameSession {
         values.setProperty("restUsed", Boolean.toString(restUsed));
         Enemy[] slots = floor.getEnemySlots();
         values.setProperty("enemySlots", Integer.toString(slots.length));
-        // Save each enemy's slot and stats, including empty slots.
+        // Preserve slot order and write stats for occupied slots so enemies return in place.
         for (int slot = 0; slot < slots.length; slot++) {
             Enemy enemy = slots[slot];
             String key = "enemy." + slot + ".";
@@ -312,9 +312,9 @@ public final class GameSession {
         return values;
     }
 
-    /** Restore a saved run and reject incomplete or impossible state. */
+    /** Rebuild a run from saved properties, rejecting unsupported or invalid values. */
     static GameSession fromProperties(Properties values) {
-        // Check the format version before using any of the saved values.
+        // Refuse versions this code does not know how to interpret before reading the fields.
         if (!"1".equals(values.getProperty("version"))) {
             throw new IllegalArgumentException("Unsupported save version.");
         }
@@ -343,7 +343,7 @@ public final class GameSession {
         }
         session.restUsed = Boolean.parseBoolean(savedRestUsed);
 
-        // Make sure the save has the right number of enemy slots before restoring them.
+        // Check the saved slot count before indexing and restoring any enemy entries.
         int slots = positiveInt(values, "enemySlots");
         if (slots != session.floor.getEnemySlots().length) {
             throw new IllegalArgumentException("Saved enemy list has an invalid size.");
@@ -355,7 +355,7 @@ public final class GameSession {
                 throw new IllegalArgumentException("Saved enemy data is incomplete.");
             }
             if (!"none".equals(type)) {
-                // Recreate each enemy and then put back its saved health and position.
+                // Rebuild the enemy from its type, then restore the saved stats and map position.
                 int enemyX = nonnegativeInt(values, key + "x");
                 int enemyY = nonnegativeInt(values, key + "y");
                 int enemyHealth = positiveInt(values, key + "health");

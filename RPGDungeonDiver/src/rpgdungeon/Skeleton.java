@@ -1,9 +1,9 @@
 package rpgdungeon;
 
-/** A steady melee enemy that grows more durable on deeper floors. */
+/** A tougher melee enemy whose health, attack, and rewards increase with floor depth. */
 public final class Skeleton extends Enemy {
     public Skeleton(int x, int y, int depth) {
-        // Skeletons have more health than goblins and get tougher deeper down.
+        // Compared with a goblin, a skeleton starts tougher and gives a larger reward.
         super("Skeleton", 13 + depth * 2, 4 + depth / 2, 14 + depth, 6 + depth, x, y);
     }
 

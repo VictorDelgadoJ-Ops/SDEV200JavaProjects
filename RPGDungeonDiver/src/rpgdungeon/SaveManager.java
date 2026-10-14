@@ -14,7 +14,7 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Properties;
 
-/** Reads and writes saved runs and the local high-score table. */
+/** Handles the files used to save a run and keep the five best local scores. */
 public final class SaveManager {
     private final Path dataDirectory;
     private final Path saveFile;
@@ -30,9 +30,9 @@ public final class SaveManager {
         scoreFile = dataDirectory.resolve("high-scores.tsv");
     }
 
-    /** Persist the current complete run, including enemy positions and health. */
+    /** Write the current run's properties to the user's save file. */
     public void save(GameSession session) throws IOException {
-        // Make sure the save folder exists before writing the properties file.
+        // Create the app's data folder on the first save so the file can be written there.
         Files.createDirectories(dataDirectory);
         Properties values = session.toProperties();
         try (OutputStream output = Files.newOutputStream(saveFile)) {
@@ -40,9 +40,9 @@ public final class SaveManager {
         }
     }
 
-    /** Load a saved run, reporting missing or damaged files as an IOException. */
+    /** Read a saved run and report missing or invalid save data as an IOException. */
     public GameSession load() throws IOException {
-        // Give a clear error instead of trying to read a file that is not there.
+        // Report a missing save directly instead of opening a path that does not exist.
         if (!Files.isRegularFile(saveFile)) {
             throw new IOException("No saved run was found.");
         }
@@ -57,10 +57,10 @@ public final class SaveManager {
         }
     }
 
-    /** Add one completed run to the persistent score table. */
+    /** Append a completed run's name and score as one row in the local score file. */
     public void recordScore(String name, int score) throws IOException {
         Files.createDirectories(dataDirectory);
-        // Keep names on one row because the score file uses tabs and newlines as separators.
+        // Replace row separators in names so one diver cannot corrupt the tab-separated score rows.
         String safeName = name.replace('\t', ' ').replace('\n', ' ').replace('\r', ' ').trim();
         if (safeName.isEmpty()) {
             safeName = "Diver";
@@ -69,13 +69,13 @@ public final class SaveManager {
                 StandardCharsets.UTF_8, StandardOpenOption.CREATE, StandardOpenOption.APPEND);
     }
 
-    /** Return the five highest valid scores, ignoring malformed lines safely. */
+    /** Return up to five scores sorted from highest to lowest, skipping invalid rows. */
     public List<String> readHighScores() throws IOException {
         if (!Files.isRegularFile(scoreFile)) {
             return Collections.emptyList();
         }
         List<ScoreEntry> scores = new ArrayList<ScoreEntry>();
-        // Skip a broken row without losing other scores from the file.
+        // Parse each tab-separated row independently so one malformed entry does not stop the list.
         for (String line : Files.readAllLines(scoreFile, StandardCharsets.UTF_8)) {
             String[] fields = line.split("\t", 2);
             if (fields.length != 2) {
@@ -84,7 +84,7 @@ public final class SaveManager {
             try {
                 scores.add(new ScoreEntry(fields[0], Integer.parseInt(fields[1])));
             } catch (NumberFormatException exception) {
-                // Ignore individual damaged rows so the rest of the table remains available.
+                // A non-numeric score invalidates this row, but the following rows can still be read.
             }
         }
         Collections.sort(scores, new Comparator<ScoreEntry>() {
@@ -93,7 +93,7 @@ public final class SaveManager {
                 return Integer.compare(second.score, first.score);
             }
         });
-        // Format only the five highest valid entries for the score dialog.
+        // Build display-ready strings for only the top five entries shown in the menu.
         List<String> rows = new ArrayList<String>();
         for (int index = 0; index < Math.min(5, scores.size()); index++) {
             ScoreEntry entry = scores.get(index);

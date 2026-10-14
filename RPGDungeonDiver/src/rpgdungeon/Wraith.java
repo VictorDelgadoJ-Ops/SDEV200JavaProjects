@@ -1,9 +1,9 @@
 package rpgdungeon;
 
-/** A dangerous deep-dungeon enemy with high attack power. */
+/** A high-damage enemy that becomes stronger and more rewarding on deeper floors. */
 public final class Wraith extends Enemy {
     public Wraith(int x, int y, int depth) {
-        // Wraiths hit hard, so they are a bigger threat on later floors.
+        // Wraiths have the strongest starting attack, and their stats rise with floor depth.
         super("Wraith", 11 + depth * 2, 5 + depth / 2, 18 + depth, 8 + depth, x, y);
     }
 

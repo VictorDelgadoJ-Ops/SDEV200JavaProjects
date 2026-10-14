@@ -1,6 +1,6 @@
 package rpgdungeon;
 
-/** The diver controlled by the player, including progression and supplies. */
+/** Tracks the diver's leveling, gold, potions, and equipment upgrades. */
 public final class Player extends Actor {
     private static final int MAX_POTIONS = 5;
     private static final int MAX_UPGRADE_LEVEL = 4;
@@ -17,7 +17,7 @@ public final class Player extends Actor {
 
     /** Drink a potion and return the health restored, or zero if unavailable. */
     public int drinkPotion() {
-        // Save potions for when they can actually restore some health.
+        // Do not consume a potion if the player is out, defeated, or already at full health.
         if (potions == 0 || !isAlive() || getHealth() == getMaximumHealth()) {
             return 0;
         }
@@ -26,7 +26,7 @@ public final class Player extends Actor {
     }
 
     boolean addPotion() {
-        // Potion drops stop being useful once the player reaches the carry limit.
+        // Keep enemy potion drops from putting more than the allowed number in the inventory.
         if (potions >= MAX_POTIONS) {
             return false;
         }
@@ -35,7 +35,7 @@ public final class Player extends Actor {
     }
 
     boolean buyWeaponUpgrade() {
-        // Each weapon level adds damage, and later upgrades cost more gold.
+        // Check the level cap and price first, then pay for the upgrade and add two attack power.
         int cost = getWeaponUpgradeCost();
         if (weaponLevel >= MAX_UPGRADE_LEVEL || gold < cost) {
             return false;
@@ -47,7 +47,7 @@ public final class Player extends Actor {
     }
 
     boolean buyArmorUpgrade() {
-        // Armor levels reduce incoming damage without letting hits reach zero.
+        // Spend gold for one armor level; reduceDamage applies its effect when the player is hit.
         int cost = getArmorUpgradeCost();
         if (armorLevel >= MAX_UPGRADE_LEVEL || gold < cost) {
             return false;
@@ -70,9 +70,9 @@ public final class Player extends Actor {
         return Math.max(1, damage - armorLevel);
     }
 
-    /** Award combat rewards and increase stats whenever an experience threshold is met. */
+    /** Add earned experience and apply every level-up reached by the new total. */
     public int earnExperience(int amount) {
-        // Keep adding levels if one reward happens to pass more than one threshold.
+        // Use a loop because one enemy reward can carry the player across multiple level thresholds.
         experience += Math.max(0, amount);
         int levelsGained = 0;
         while (experience >= level * 24) {
@@ -86,7 +86,7 @@ public final class Player extends Actor {
     }
 
     void restoreProgress(int savedLevel, int savedExperience, int savedGold, int savedPotions) {
-        // Make sure loaded progress values are valid before restoring them.
+        // Reject invalid save data before restoring the player's level, supplies, and currency.
         if (savedLevel < 1 || savedExperience < 0 || savedGold < 0
                 || savedPotions < 0 || savedPotions > MAX_POTIONS) {
             throw new IllegalArgumentException("Saved player progress is invalid.");
@@ -98,6 +98,7 @@ public final class Player extends Actor {
     }
 
     void restoreEquipment(int savedWeaponLevel, int savedArmorLevel) {
+        // Restrict loaded upgrade levels to the same range used by the shop.
         if (savedWeaponLevel < 0 || savedWeaponLevel > MAX_UPGRADE_LEVEL
                 || savedArmorLevel < 0 || savedArmorLevel > MAX_UPGRADE_LEVEL) {
             throw new IllegalArgumentException("Saved equipment is invalid.");

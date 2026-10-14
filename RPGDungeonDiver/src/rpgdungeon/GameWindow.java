@@ -27,7 +27,7 @@ import javax.swing.KeyStroke;
 import javax.swing.SwingConstants;
 import javax.swing.border.EmptyBorder;
 
-/** Main Swing window, connecting player input and game state to the display. */
+/** Main Swing window that connects player actions, the current run, and the game display. */
 @SuppressWarnings("serial")
 public final class GameWindow extends JFrame {
     private static final Color BACKGROUND = new Color(19, 28, 25);
@@ -57,7 +57,7 @@ public final class GameWindow extends JFrame {
 
     public GameWindow() {
         super("RPG Dungeon Diver");
-        // Set up the window size and start on the title screen.
+        // Set the starting window size, center it, and show the menu first.
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         setMinimumSize(new Dimension(1030, 700));
         setSize(1210, 790);
@@ -67,14 +67,14 @@ public final class GameWindow extends JFrame {
     }
 
     private void showGame() {
-        // Rebuild the play screen and connect its controls to the current run.
+        // Recreate the play screen for this session, then enable controls and update its values.
         buildInterface();
         installKeyboardControls();
         refreshDisplay();
     }
 
     private void showMainMenu() {
-        // Build the title area separately from the buttons and difficulty choice.
+        // Keep the game title at the top, with the menu choices arranged below it.
         JPanel root = new JPanel(new BorderLayout());
         root.setBackground(BACKGROUND);
         root.setBorder(new EmptyBorder(44, 56, 44, 56));
@@ -97,7 +97,7 @@ public final class GameWindow extends JFrame {
         menu.setOpaque(false);
         menu.setLayout(new BoxLayout(menu, BoxLayout.Y_AXIS));
         menu.setBorder(new EmptyBorder(55, 0, 0, 0));
-        // Let the player pick a challenge level before starting a fresh run.
+        // Remember the current difficulty when returning to the menu; otherwise start at Medium.
         menu.add(sectionLabel("CHOOSE YOUR DESCENT"));
         menu.add(Box.createVerticalStrut(10));
         difficultyChoice = new JComboBox<Difficulty>(Difficulty.values());
@@ -111,7 +111,7 @@ public final class GameWindow extends JFrame {
         menu.add(difficultyChoice);
         menu.add(Box.createVerticalStrut(12));
 
-        // These buttons handle starting, resuming, loading, scores, and exiting.
+        // Add the main menu actions; Continue only appears when a run already exists.
         JButton newRunButton = actionButton("NEW DIVE", ACCENT);
         newRunButton.addActionListener(event -> startNewRun());
         menu.add(newRunButton);
@@ -150,7 +150,7 @@ public final class GameWindow extends JFrame {
     }
 
     private void buildInterface() {
-        // Set up the header, map, stats panel, and control footer for gameplay.
+        // Lay out the floor heading, dungeon map, player sidebar, and control hints.
         JPanel root = new JPanel(new BorderLayout(16, 14));
         root.setBackground(BACKGROUND);
         root.setBorder(new EmptyBorder(18, 20, 16, 20));
@@ -190,7 +190,7 @@ public final class GameWindow extends JFrame {
     }
 
     private JPanel buildSidebar() {
-        // The sidebar shows diver stats, actions, save controls, and the event log.
+        // Group the player's stats and bars above the action buttons, run controls, and message log.
         JPanel sidebar = new JPanel();
         sidebar.setBackground(PANEL);
         sidebar.setBorder(new EmptyBorder(15, 15, 15, 15));
@@ -230,7 +230,7 @@ public final class GameWindow extends JFrame {
         sidebar.add(Box.createVerticalStrut(16));
         sidebar.add(sectionLabel("ACTIONS"));
         sidebar.add(Box.createVerticalStrut(8));
-        // Connect the main buttons to the same action handler as keyboard input.
+        // Send button actions through performAction so they refresh the screen like key presses.
         JButton attackButton = actionButton("ATTACK", ACCENT);
         attackButton.addActionListener(event -> performAction(() -> session.attack()));
         JButton potionButton = actionButton("DRINK POTION", new Color(222, 140, 116));
@@ -251,7 +251,7 @@ public final class GameWindow extends JFrame {
         sidebar.add(Box.createVerticalStrut(16));
         sidebar.add(sectionLabel("RUN"));
         sidebar.add(Box.createVerticalStrut(8));
-        // Keep run management controls together in a small button grid.
+        // Put new, save, load, score, and menu options together in a compact grid.
         JPanel fileButtons = new JPanel(new GridLayout(2, 2, 6, 6));
         fileButtons.setOpaque(false);
         JButton newButton = smallButton("NEW");
@@ -290,7 +290,7 @@ public final class GameWindow extends JFrame {
     }
 
     private JPanel buildFooter() {
-        // Show the key bindings so players do not have to guess the controls.
+        // List the movement and action keys along the bottom of the play screen.
         JPanel footer = new JPanel(new BorderLayout());
         footer.setOpaque(false);
         JLabel controls = new JLabel("MOVE  WASD / ARROWS     ATTACK  SPACE     POTION  H     STAIRS  E");
@@ -305,7 +305,7 @@ public final class GameWindow extends JFrame {
     }
 
     private void installKeyboardControls() {
-        // Bind both WASD and arrow keys, plus shortcuts for the other actions.
+        // Support both movement key layouts, with shortcuts for attacking, potions, and stairs.
         InputMap inputs = dungeonView.getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW);
         bindMove(inputs, "UP", "moveUp", 0, -1);
         bindMove(inputs, "W", "moveUpW", 0, -1);
@@ -325,7 +325,7 @@ public final class GameWindow extends JFrame {
     }
 
     private void bindAction(InputMap inputs, String key, String actionName, GameAction action) {
-        // Route a pressed key through the normal action and screen refresh logic.
+        // Map the key to an action that uses the same game-update path as the buttons.
         inputs.put(KeyStroke.getKeyStroke(key), actionName);
         dungeonView.getActionMap().put(actionName, new AbstractAction() {
             @Override
@@ -336,7 +336,7 @@ public final class GameWindow extends JFrame {
     }
 
     private void performAction(GameAction action) {
-        // Ignore input after defeat, otherwise apply the move and redraw the UI.
+        // Do not accept more turns after defeat; otherwise run the action and show its results.
         if (!session.isGameOver()) {
             action.run();
             refreshDisplay();
@@ -344,7 +344,7 @@ public final class GameWindow extends JFrame {
     }
 
     private void refreshDisplay() {
-        // Copy the latest game stats and event messages into the visible controls.
+        // Pull current values from the session so the labels, bars, and dungeon view stay in sync.
         Player player = session.getPlayer();
         nameLabel.setText(player.getName().toUpperCase());
         depthLabel.setText(String.format("DEPTH  %02d", session.getDepth()));
@@ -365,6 +365,7 @@ public final class GameWindow extends JFrame {
         restShopButton.setText(session.isRestStop()
                 ? "REST STOP / SHOP"
                 : "REST / SHOP (FLOOR " + ((session.getDepth() / 3 + 1) * 3) + ")");
+        // Join the session messages into the field-notes box, keeping each event on its own line.
         StringBuilder log = new StringBuilder();
         for (String message : session.getMessages()) {
             if (log.length() > 0) {
@@ -377,7 +378,7 @@ public final class GameWindow extends JFrame {
         saveButton.setEnabled(!session.isGameOver());
         dungeonView.repaint();
 
-        // Record each finished run only once, then show its final score.
+        // Save the final score once per run, even if the display refreshes again after game over.
         if (session.isGameOver() && !scoreRecorded) {
             scoreRecorded = true;
             try {
@@ -392,12 +393,15 @@ public final class GameWindow extends JFrame {
     }
 
     private void openRestShop() {
+        // The shop is only available on a rest floor while the diver is still alive.
         if (!session.isRestStop() || session.isGameOver()) {
             return;
         }
 
+        // Keep the menu open after each purchase so the player can make more than one choice.
         while (true) {
             Player player = session.getPlayer();
+            // Show the current rest and upgrade status so unavailable options are clear.
             String restChoice = session.isRestAvailable()
                     ? "Rest and heal up to 12 HP" : "Rest already used";
             String weaponChoice = player.getWeaponLevel() >= 4
@@ -428,7 +432,7 @@ public final class GameWindow extends JFrame {
     }
 
     private void startNewRun() {
-        // Ask for a diver name and use a default if the input is blank.
+        // Ask for a name; canceling backs out, while blank or long names are cleaned up below.
         String name = JOptionPane.showInputDialog(this, "Name your diver:", "New Run",
                 JOptionPane.QUESTION_MESSAGE);
         if (name == null) {
@@ -450,7 +454,7 @@ public final class GameWindow extends JFrame {
     }
 
     private void saveRun() {
-        // Show a confirmation or an error depending on whether saving works.
+        // Save the current session and tell the player whether the file operation succeeded.
         try {
             saveManager.save(session);
             JOptionPane.showMessageDialog(this, "Run saved on this computer.",
@@ -461,7 +465,7 @@ public final class GameWindow extends JFrame {
     }
 
     private void loadRun() {
-        // Replace the current session with the saved one when it loads correctly.
+        // Swap in the saved session and reopen gameplay only after loading succeeds.
         try {
             session = saveManager.load();
             scoreRecorded = false;
@@ -472,7 +476,7 @@ public final class GameWindow extends JFrame {
     }
 
     private void showHighScores() {
-        // Read the local score list and show it in a message box.
+        // Read scores saved on this computer, with a message for an empty score list.
         try {
             java.util.List<String> scores = saveManager.readHighScores();
             String text = scores.isEmpty() ? "No completed runs yet."
@@ -485,13 +489,13 @@ public final class GameWindow extends JFrame {
     }
 
     private void showError(String message, IOException exception) {
-        // Put the file error details in a dialog instead of hiding the problem.
+        // Show both the helpful message and the file error so a save problem is visible.
         JOptionPane.showMessageDialog(this, message + "\n" + exception.getMessage(),
                 "Dungeon Diver", JOptionPane.ERROR_MESSAGE);
     }
 
     private JProgressBar createBar(Color color) {
-        // Use one helper so the health and experience bars look consistent.
+        // Use the same size and text style for health and experience, changing only the color.
         JProgressBar bar = new JProgressBar();
         bar.setStringPainted(true);
         bar.setForeground(color);
@@ -503,6 +507,7 @@ public final class GameWindow extends JFrame {
         return bar;
     }
 
+    // These helpers keep sidebar headings and detail labels aligned and styled consistently.
     private JLabel sectionTitle(String text) {
         JLabel label = new JLabel(text);
         label.setForeground(TEXT);
@@ -528,7 +533,7 @@ public final class GameWindow extends JFrame {
     }
 
     private JButton actionButton(String text, Color color) {
-        // Apply the shared appearance and size used by the larger buttons.
+        // Give the larger menu and action buttons a consistent size, border, font, and hover cursor.
         JButton button = new JButton(text);
         button.setAlignmentX(LEFT_ALIGNMENT);
         button.setMaximumSize(new Dimension(Integer.MAX_VALUE, 34));
@@ -545,7 +550,7 @@ public final class GameWindow extends JFrame {
     }
 
     private JButton smallButton(String text) {
-        // Smaller run buttons reuse the same style with less height.
+        // Reuse the main button styling, but shrink these controls to fit the run button grid.
         JButton button = actionButton(text, TEXT);
         button.setPreferredSize(new Dimension(105, 30));
         button.setMaximumSize(new Dimension(Integer.MAX_VALUE, 30));
