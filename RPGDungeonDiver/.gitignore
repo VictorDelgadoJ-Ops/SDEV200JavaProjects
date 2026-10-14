@@ -1,2 +1,4 @@
 /build/
 *.class
+/saved-run.properties
+/high-scores.tsv

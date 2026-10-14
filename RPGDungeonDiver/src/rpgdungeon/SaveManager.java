@@ -18,36 +18,57 @@ import java.util.Properties;
 public final class SaveManager {
     private final Path dataDirectory;
     private final Path saveFile;
+    private final Path previousSaveFile;
     private final Path scoreFile;
+    private final Path previousScoreFile;
 
     public SaveManager() {
-        this(Paths.get(System.getProperty("user.home"), ".rpg-dungeon-diver"));
+        this(Paths.get(System.getProperty("user.home"), ".rpg-dungeon-diver"),
+                projectDirectory(), projectDirectory());
     }
 
     SaveManager(Path dataDirectory) {
+        this(dataDirectory, dataDirectory, dataDirectory);
+    }
+
+    private SaveManager(Path dataDirectory, Path saveDirectory, Path scoreDirectory) {
         this.dataDirectory = dataDirectory;
-        saveFile = dataDirectory.resolve("saved-run.properties");
-        scoreFile = dataDirectory.resolve("high-scores.tsv");
+        saveFile = saveDirectory.resolve("saved-run.properties");
+        previousSaveFile = dataDirectory.resolve("saved-run.properties");
+        scoreFile = scoreDirectory.resolve("high-scores.tsv");
+        previousScoreFile = dataDirectory.resolve("high-scores.tsv");
     }
 
     /** Write the current run's properties to the user's save file. */
     public void save(GameSession session) throws IOException {
-        // Create the app's data folder on the first save so the file can be written there.
-        Files.createDirectories(dataDirectory);
+        // Create the project folder if needed before writing the saved run.
+        Files.createDirectories(saveFile.getParent());
         Properties values = session.toProperties();
         try (OutputStream output = Files.newOutputStream(saveFile)) {
             values.store(output, "RPG Dungeon Diver saved run");
         }
     }
 
+    private static Path projectDirectory() {
+        Path workingDirectory = Paths.get(System.getProperty("user.dir"))
+                .toAbsolutePath().normalize();
+        Path folderName = workingDirectory.getFileName();
+        if (folderName != null && "RPGDungeonDiver".equalsIgnoreCase(folderName.toString())) {
+            return workingDirectory;
+        }
+        Path projectDirectory = workingDirectory.resolve("RPGDungeonDiver");
+        return Files.isDirectory(projectDirectory) ? projectDirectory : workingDirectory;
+    }
+
     /** Read a saved run and report missing or invalid save data as an IOException. */
     public GameSession load() throws IOException {
-        // Report a missing save directly instead of opening a path that does not exist.
-        if (!Files.isRegularFile(saveFile)) {
+        // Check the project folder first, then allow runs saved by the older version to load.
+        Path fileToLoad = Files.isRegularFile(saveFile) ? saveFile : previousSaveFile;
+        if (!Files.isRegularFile(fileToLoad)) {
             throw new IOException("No saved run was found.");
         }
         Properties values = new Properties();
-        try (InputStream input = Files.newInputStream(saveFile)) {
+        try (InputStream input = Files.newInputStream(fileToLoad)) {
             values.load(input);
         }
         try {
@@ -59,7 +80,12 @@ public final class SaveManager {
 
     /** Append a completed run's name and score as one row in the local score file. */
     public void recordScore(String name, int score) throws IOException {
-        Files.createDirectories(dataDirectory);
+        Files.createDirectories(scoreFile.getParent());
+        // Carry older scores over the first time a score is recorded in the project folder.
+        if (!Files.exists(scoreFile) && Files.isRegularFile(previousScoreFile)
+                && !scoreFile.equals(previousScoreFile)) {
+            Files.copy(previousScoreFile, scoreFile);
+        }
         // Replace row separators in names so one diver cannot corrupt the tab-separated score rows.
         String safeName = name.replace('\t', ' ').replace('\n', ' ').replace('\r', ' ').trim();
         if (safeName.isEmpty()) {
@@ -71,12 +97,14 @@ public final class SaveManager {
 
     /** Return up to five scores sorted from highest to lowest, skipping invalid rows. */
     public List<String> readHighScores() throws IOException {
-        if (!Files.isRegularFile(scoreFile)) {
+        // Fall back to the previous location until scores are written into the project folder.
+        Path fileToRead = Files.isRegularFile(scoreFile) ? scoreFile : previousScoreFile;
+        if (!Files.isRegularFile(fileToRead)) {
             return Collections.emptyList();
         }
         List<ScoreEntry> scores = new ArrayList<ScoreEntry>();
         // Parse each tab-separated row independently so one malformed entry does not stop the list.
-        for (String line : Files.readAllLines(scoreFile, StandardCharsets.UTF_8)) {
+        for (String line : Files.readAllLines(fileToRead, StandardCharsets.UTF_8)) {
             String[] fields = line.split("\t", 2);
             if (fields.length != 2) {
                 continue;

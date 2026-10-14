@@ -42,7 +42,7 @@ If PowerShell blocks local scripts, run `powershell -ExecutionPolicy Bypass -Fil
 - Choose **Easy**, **Medium**, **Hard**, or **Insane** before starting. Higher difficulties add enemies and increase their health and attack power; the selected difficulty is stored with the run.
 - Use **SAVE** and **LOAD** to preserve or resume a run. **SCORES** displays the five highest recorded runs.
 
-Saves and high scores are stored in `%USERPROFILE%\.rpg-dungeon-diver`. A saved run includes diver statistics, equipment upgrades, rest-stop use, location, floor, and each remaining enemy's type, position, and health. Older saves without equipment or rest-stop data load with the default values. High-score rows that cannot be parsed are skipped so a damaged row does not hide the rest of the table.
+The saved game and high scores are written to `saved-run.properties` and `high-scores.tsv` in the `RPGDungeonDiver` project folder. Runs saved by an older version in `%USERPROFILE%\.rpg-dungeon-diver` can still be loaded, and old scores are copied into the project folder the first time a new score is recorded. A saved run includes diver statistics, equipment upgrades, rest-stop use, location, floor, and each remaining enemy's type, position, and health. Older saves without equipment or rest-stop data load with the default values. High-score rows that cannot be parsed are skipped so a damaged row does not hide the rest of the table.
 
 ## Test the Game Rules
 
@@ -58,7 +58,7 @@ RPGDungeonDiver/
   test.ps1              Compile and run tests
 ```
 
-## Course Concepts Demonstrated
+## Course Concepts Demonstrated in my game
 
 - **Classes, objects, encapsulation, and methods:** `Player`, `Enemy`, `DungeonFloor`, and `GameSession` own state and expose focused operations.
 - **Inheritance and polymorphism:** abstract `Actor` is extended by `Player` and `Enemy`; `Goblin`, `Skeleton`, and `Wraith` provide their own symbols and rewards through overridden methods.
